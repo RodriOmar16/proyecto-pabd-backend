@@ -122,3 +122,9 @@ Reglas:
 - Cada integrante trabaja en su rama: `feature/<tabla>` (ej. `feature/products`).
 - Al terminar: `git push` de la rama y **pull request** hacia `main`; otro integrante lo revisa antes de unir.
 - Antes de empezar cada día: `git pull origin main` para traer los cambios del resto.
+
+## Migraciones
+1. Todo cambio de estructura en la base va como migración nueva. Nunca se hace a mano.
+2. Nunca se modifica una migración que ya se subió: si hay que corregir algo, se crea otra (002_...).
+3. Después de cada git pull: python migrate.py.
+4. Para no chocar números entre los 3, conviene avisar en el grupo antes de crear una migración.
