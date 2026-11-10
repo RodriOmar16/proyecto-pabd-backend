@@ -5,11 +5,11 @@ from http import HTTPStatus
 from urllib.parse import parse_qs
 
 #Encabezados CORS: permiten que el front (en otro puerto) consuma la API
-CORS_HEADERS = {
+CORS_HEADERS = [
   ("Access-Control-Allow-Origin", "*"),
-  ("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"),
+  ("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS"),
   ("Access-Control-Allow-Headers", "Content-Type"),
-}
+]
 
 class HttpError(Exception):
   """ Error que se convierte en respuesta HTTP con el formato { "error": mensaje }. """
@@ -23,11 +23,11 @@ class Request:
 
   def __init__(self, environ: dict):
     self.method = environ["REQUEST_METHOD"]
-    self.path = environ["PATH_INFO", "/"]
+    self.path = environ.get("PATH_INFO", "/")
     # valores que se pegan a la url del nav. Ejemplo: ?page=2&q=berlin -> { "page": "2", "q":| "berlin" } 
     self.query = { k: v[0] for k, v in parse_qs(environ.get("QUERY_STRING", "")).items() }
     self.params = {} #parámetros de la ruta, ej: { "id": "ALFKI" }; los completa el router
-    self.environ = environ
+    self._environ = environ
 
   def json(self) -> dict:
     """ Lee el cuerpo de la petición (POST/PUT) y lo devuelve como diccionario."""
@@ -37,7 +37,7 @@ class Request:
       largo = 0
     if largo == 0:
       raise HttpError(400, "El campo de la petición está vacío")
-    cuerpo = self.environ["wsgi.input"].read(largo)
+    cuerpo = self._environ["wsgi.input"].read(largo)
     try:
       datos = json.loads(cuerpo)
     except json.JSONDecodeError:
@@ -60,6 +60,17 @@ class Request:
     if maximo is not None and numero > maximo:
       numero = maximo
     return numero
+
+  def query_bool(self, nombre: str, defecto: bool = False) -> bool:
+    """Lee un parámetro true/false de la URL (ej. disabled=true)."""
+    valor = self.query.get(nombre, "").lower()
+    if valor == "":
+      return defecto
+    if valor in ("true", "1"):
+      return True
+    if valor in ("false", "0"):
+      return False
+    raise HttpError(400, f"El parámetro '{nombre}' debe ser true o false")
 
 class Response:
   """ Lo que devuelve cada handler: un código de estado y los datos a enviar como JSON """
