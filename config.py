@@ -14,7 +14,6 @@ def load_env(path: Path = Path(__file__).with_name(".env")) -> None:
         # setdefault: si la variable ya existe en el sistema, tiene prioridad sobre el .env
         os.environ.setdefault(clave.strip(), valor.strip().strip('"').strip("'"))
 
-
 load_env()
 
 DB_CONFIG = {
