@@ -20,7 +20,6 @@ def _error_http(e: psycopg.Error) -> HttpError:
         return HttpError(409, mensaje)
     return HttpError(400, mensaje)
 
-
 def listar(req: Request) -> Response:
     page = req.query_int("page", 1)
     size = req.query_int("size", 20, maximo=100)
@@ -31,16 +30,18 @@ def listar(req: Request) -> Response:
         for columna in repository.COLUMNAS_BUSCABLES
         if req.query.get(columna, "").strip()
     }
-    filas, total = repository.listar(page, size, filtros, disabled)
+    try:
+        filas, total = repository.listar(page, size, filtros, disabled)
+    except ERRORES_DE_LA_BASE as e:
+        raise _error_http(e)
     return Response(200, {"data": filas, "page": page, "size": size, "total": total})
 
-
 def obtener(req: Request) -> Response:
-    cliente = repository.obtener(req.params["id"])
-    if cliente is None:
-        raise HttpError(404, "Cliente no encontrado")
+    try:
+        cliente = repository.obtener(req.params["id"])
+    except ERRORES_DE_LA_BASE as e:
+        raise _error_http(e)
     return Response(200, cliente)
-
 
 def crear(req: Request) -> Response:
     datos = req.json()
