@@ -21,7 +21,7 @@ DB_CONFIG = {
     "port": int(os.environ.get("DB_PORT", "5432")),
     "dbname": os.environ.get("DB_NAME", "northwind"),
     "user": os.environ.get("DB_USER", "postgres"),
-    "password": os.environ.get("DB_PASSWORD", "super12"),
+    "password": os.environ.get("DB_PASSWORD", ""),
     "options": f"-c search_path={os.environ.get('DB_SCHEMA', 'public')}",
 }
 
