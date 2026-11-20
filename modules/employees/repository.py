@@ -1,141 +1,128 @@
 from db import get_connection
 
-# Columnas que se cargan/editan desde la API
-# ordersquantity y ordersamount no se tocan: las mantiene la base de datos
-COLUMNAS = [
-    "lastname",
-    "firstname",
-    "title",
-    "titleofcourtesy",
-    "birthdate",
-    "hiredate",
-    "address",
-    "city",
-    "region",
-    "postalcode",
-    "country",
-    "homephone",
-    "extension",
-    "notes",
-    "reportsto",
-    "salary",
-    "comission_pct",
-]
-
 # Columnas por las que se puede buscar (el front muestra un campo de búsqueda por cada una)
 COLUMNAS_BUSCABLES = [
     "employeeid",
     "lastname",
     "firstname",
     "title",
+    "titleofcourtesy",
     "birthdate",
     "hiredate",
     "city",
     "region",
     "postalcode",
     "country",
+    "reportsto",
+    "comission_pct",
 ]
 
+# Toda la lectura la resuelve la base (migrations/003_vw_empleados.sql).
+# Los filtros que no vienen van como NULL: la función los ignora.
+SQL_LISTAR = """
+    SELECT * FROM fn_consulta_empleado(
+        p_disabled        => %(disabled)s::boolean,
+        p_page            => %(page)s::integer,
+        p_size            => %(size)s::integer,
+        p_id              => %(employeeid)s::integer,
+        p_lastname        => %(lastname)s::text,
+        p_firstname       => %(firstname)s::text,
+        p_title           => %(title)s::text,
+        p_titleofcourtesy => %(titleofcourtesy)s::text,
+        p_birthdate       => %(birthdate)s::date,
+        p_hiredate        => %(hiredate)s::date,
+        p_city            => %(city)s::text,
+        p_region          => %(region)s::text,
+        p_cp              => %(postalcode)s::text,
+        p_country         => %(country)s::text,
+        p_reportsto       => %(reportsto)s::integer,
+        p_comission_pct   => %(comission_pct)s::numeric
+    )
+"""
+
+SQL_OBTENER = "SELECT * FROM fn_consulta_empleado(p_id => %s::integer)"
+
+SQL_ABM = """
+    SELECT fn_abm_employee(
+        p_accion          => %s::text,
+        p_id              => %s::integer,
+        p_lastname        => %s::text,
+        p_firstname       => %s::text,
+        p_title           => %s::text,
+        p_titleofcourtesy => %s::text,
+        p_birthdate       => %s::date,
+        p_hiredate        => %s::date,
+        p_address         => %s::text,
+        p_city            => %s::text,
+        p_region          => %s::text,
+        p_cp              => %s::text,
+        p_country         => %s::text,
+        p_homephone       => %s::text,
+        p_extension       => %s::text,
+        p_notes           => %s::text,
+        p_reportsto       => %s::integer,
+        p_salary          => %s::numeric,
+        p_comission_pct   => %s::numeric
+    ) AS mensaje
+"""
+
+def _sin_total(fila: dict) -> dict:
+    """La columna total es de la paginación, no del empleado."""
+    fila.pop("total", None)
+    return fila
 
 def listar(page: int, size: int, filtros: dict, disabled: bool = False):
-    """Devuelve (filas de la página pedida, total).
-    filtros: {columna: texto a buscar}; disabled=False lista habilitados,
-    True inhabilitados."""
-    condiciones = ["disabled = %(disabled)s"]
-    params = {"disabled": disabled}
-    for columna in COLUMNAS_BUSCABLES:
-        valor = filtros.get(columna)
-        if valor:
-            # El nombre de la columna sale de la lista fija de arriba (seguro);
-            # el texto buscado va siempre como parámetro
-            condiciones.append(f"{columna} ILIKE %({columna})s")
-            params[columna] = f"%{valor}%"
-    where = "WHERE " + " AND ".join(condiciones)
-
+    """Devuelve (filas de la página pedida, total) usando fn_consulta_empleado."""
+    params = {columna: filtros.get(columna) for columna in COLUMNAS_BUSCABLES}
+    params.update(page=page, size=size, disabled=disabled)
     with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(f"SELECT count(*) AS total FROM employees {where}", params)
-        total = cur.fetchone()["total"]  # se calcula para la paginación
-
-        cur.execute(
-            f"""SELECT * FROM employees {where}
-                ORDER BY employees
-                LIMIT %(limite)s OFFSET %(desde)s""",
-            {**params, "limite": size, "desde": (page - 1) * size},
-        )
-        return cur.fetchall(), total
-
+        cur.execute(SQL_LISTAR, params)
+        filas = cur.fetchall()
+    total = filas[0]["total"] if filas else 0
+    return [_sin_total(f) for f in filas], total
 
 def obtener(employeeid: str):
-    """Devuelve el empleado habilitado o None si no existe (o esta deshabilitado)."""
+    """Devuelve el empleado. Si no existe o está inhabilitado, la base lanza NoDataFound."""
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(SQL_OBTENER, (employeeid,))
+        return _sin_total(cur.fetchone())
+
+def _abm(accion: str, employeeid: str, datos: dict | None = None) -> str:
+    """Llama a la función de la base fn_abm_employee y devuelve su mensaje.
+    Las validaciones las hace la función: si rechaza la operación, psycopg lanza
+    la excepción con el mensaje escrito en la base."""
+    datos = datos or {}
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(
-            "SELECT * FROM employees WHERE employeeid = %s AND NOT disabled",
-            (employeeid,),
+            SQL_ABM,
+            [
+                accion, employeeid,
+                datos.get("lastname"), datos.get("firstname"),
+                datos.get("title"), datos.get("titleofcourtesy"),
+                datos.get("birthdate"), datos.get("hiredate"),
+                datos.get("address"), datos.get("city"),
+                datos.get("region"), datos.get("postalcode"),
+                datos.get("country"), datos.get("homephone"),
+                datos.get("extension"), datos.get("notes"),
+                datos.get("reportsto"), datos.get("salary"),
+                datos.get("comission_pct")
+            ],
         )
-        return cur.fetchone()
-
+        return cur.fetchone()["mensaje"]
 
 def crear(employeeid: str, datos: dict):
-    """Inserta un empleado y lo devuelve tal como quedó en la base."""
-    valores = [employeeid] + [datos.get(c) for c in COLUMNAS]
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            """ INSERT INTO employees(employeeid, lastname, firstname, title, titleofcourtesy, birthdate, hiredate, address, 
-                                    city, region, postalcode, country, homephone, extension, notes, reportsto, salary, comission_pct) 
-                VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                RETURNING *""",
-            valores,
-        )
-        return cur.fetchone()
-
+    """Alta: fn_abm_employee('A', ...). Devuelve el empleado tal como quedó en la base."""
+    _abm("A", employeeid, datos)
+    return obtener(employeeid)
 
 def actualizar(employeeid: str, datos: dict):
-    """Reemplaza los datos del cliente. Devuelve el cliente actualizado o None si no existe."""
-    valores = [datos.get(c) for c in COLUMNAS] + [employeeid]
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            """ UPDATE employees
-                SET lastname        = %s,
-                    firstname       = %s,
-                    title           = %s,
-                    titleofcourtesy = %s,
-                    birthdate       = %s,
-                    hiredate        = %s,
-                    address         = %s,
-                    city            = %s,
-                    region          = %s,
-                    postalcode      = %s,
-                    country         = %s,
-                    homephone       = %s,
-                    extension       = %s,
-                    notes           = %s,
-                    reportsto       = %s,
-                    salary          = %s,
-                    comission_pct   = %s
-                WHERE employeeid = %s AND NOT disabled
-                RETURNING *""",
-            valores,
-        )
-        return cur.fetchone()
-
-
-def eliminar(employeeid: str) -> bool:
-    """Borra el cliente. Devuelve True si existía."""
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute("DELETE FROM employees WHERE employeeid = %s", (employeeid,))
-        return cur.rowcount > 0
+    """Modificación: fn_abm_employee('M', ...). Devuelve el empleado actualizado."""
+    _abm("M", employeeid, datos)
+    return obtener(employeeid)
 
 
 def cambiar_estado(employeeid: str):
-    """Habilita o inhabilita el empleado invirtiendo 'disabled'.
-    Devuelve { employeeid, lastname, firstname, disabled } o None si no existe."""
-
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            """ UPDATE employees
-                SET disabled = NOT disabled
-                WHERE employeeid = %s
-                RETURNING employeeid, lastname, firstname, disabled """,
-            (employeeid,),
-        )
-        return cur.fetchone()
+    """Baja lógica: fn_abm_empleado('B', ...) invierte el estado.
+    Devuelve {employeeid, mensaje} con el mensaje de la base."""
+    mensaje = _abm("B", employeeid)
+    return {"employeeid": employeeid, "mensaje": mensaje}
