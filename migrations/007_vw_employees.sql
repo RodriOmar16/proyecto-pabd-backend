@@ -19,7 +19,7 @@ SELECT
     e.address,
     e.city,
     e.region,
-    e.postalcode  AS cp,
+    e.postalcode,
     e.country,
     e.homephone,
     e.extension,
@@ -38,7 +38,7 @@ FROM employees e;
 -- que cumplen los filtros, sin importar la página).
 -- Filtros: NULL o texto vacío = no filtra. Se combinan con AND, sin distinguir mayúsculas.
 CREATE OR REPLACE FUNCTION fn_consulta_empleado(
-    p_id              int,
+    p_id              int DEFAULT NULL,
     p_disabled        boolean DEFAULT false,
     p_page            int DEFAULT 1,
     p_size            int DEFAULT 20,
@@ -65,7 +65,7 @@ CREATE OR REPLACE FUNCTION fn_consulta_empleado(
     address         varchar,
     city            varchar,
     region          varchar,
-    cp              varchar,
+    postalcode      varchar,
     country         varchar(3),
     homephone       varchar,
     extension       varchar,
@@ -86,7 +86,7 @@ BEGIN
         RETURN QUERY
             SELECT v.employeeid, v.lastname, v.firstname,
                 v.title, v.titleofcourtesy, v.birthdate, v.hiredate,
-                v.address, v.city, v.region, v.cp,
+                v.address, v.city, v.region, v.postalcode,
                 v.country, v.homephone, v.extension, v.notes,
                 v.reportsto, v.salary, v.comission_pct,
                 v.disabled, 1::bigint
@@ -123,7 +123,7 @@ BEGIN
     RETURN QUERY
         SELECT v.employeeid, v.lastname, v.firstname,
             v.title, v.titleofcourtesy, v.birthdate, v.hiredate,
-            v.address, v.city, v.region, v.cp,
+            v.address, v.city, v.region, v.postalcode,
             v.country, v.homephone, v.extension,
             v.notes, v.reportsto, v.salary, v.comission_pct,
             v.disabled, count(*) OVER ()
@@ -138,7 +138,7 @@ BEGIN
             AND (p_hiredate        IS NULL OR v.hiredate      = p_hiredate)
             AND (p_city            IS NULL OR v.city            ILIKE '%' || p_city            || '%')
             AND (p_region          IS NULL OR v.region          ILIKE '%' || p_region          || '%')
-            AND (p_cp              IS NULL OR v.cp              ILIKE '%' || p_cp              || '%')
+            AND (p_cp              IS NULL OR v.postalcode      ILIKE '%' || p_cp              || '%')
             AND (p_country         IS NULL OR v.country         ILIKE '%' || p_country         || '%')
             AND (p_reportsto       IS NULL OR v.reportsto     = p_reportsto)
             AND (p_comission_pct   IS NULL OR v.comission_pct = p_comission_pct)

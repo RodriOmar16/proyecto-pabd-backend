@@ -66,6 +66,15 @@ SQL_ABM = """
     ) AS mensaje
 """
 
+def _normalizar_datos(datos: dict | None) -> dict:
+    if not datos:
+        return {}
+
+    return {
+        campo: None if valor == "" else valor
+        for campo, valor in datos.items()
+    }
+
 def _sin_total(fila: dict) -> dict:
     """La columna total es de la paginación, no del empleado."""
     fila.pop("total", None)
@@ -91,7 +100,7 @@ def _abm(accion: str, employeeid: str, datos: dict | None = None) -> str:
     """Llama a la función de la base fn_abm_employee y devuelve su mensaje.
     Las validaciones las hace la función: si rechaza la operación, psycopg lanza
     la excepción con el mensaje escrito en la base."""
-    datos = datos or {}
+    datos = _normalizar_datos(datos)
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(
             SQL_ABM,
