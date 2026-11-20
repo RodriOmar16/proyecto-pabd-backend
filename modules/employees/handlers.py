@@ -65,3 +65,20 @@ def cambiar_estado(req: Request) -> Response:
     except ERRORES_DE_LA_BASE as e:
         raise _error_http(e)
     return Response(200, resultado)
+
+def listar_supervisores(req: Request) -> Response:
+    try:
+        resultado = repository.listar_supervisores(
+            req.query.get("employeeid")
+        )
+    except ERRORES_DE_LA_BASE as e:
+        raise _error_http(e)
+
+    return Response(200, resultado)
+
+def listar_paises(req: Request) -> Response:
+    try:
+        resultado = repository.listar_paises()
+    except ERRORES_DE_LA_BASE as e:
+        raise _error_http(e)
+    return Response(200, resultado)

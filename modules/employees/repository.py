@@ -66,6 +66,14 @@ SQL_ABM = """
     ) AS mensaje
 """
 
+SQL_LISTAR_SUPERVISORES = """
+    SELECT * FROM fn_listar_supervisores(p_id => %s::integer)
+"""
+
+SQL_LISTAR_PAISES = """
+    SELECT * FROM fn_listar_paises()
+"""
+
 def _normalizar_datos(datos: dict | None) -> dict:
     if not datos:
         return {}
@@ -129,9 +137,20 @@ def actualizar(employeeid: str, datos: dict):
     _abm("M", employeeid, datos)
     return obtener(employeeid)
 
-
 def cambiar_estado(employeeid: str):
     """Baja lógica: fn_abm_empleado('B', ...) invierte el estado.
     Devuelve {employeeid, mensaje} con el mensaje de la base."""
     mensaje = _abm("B", employeeid)
     return {"employeeid": employeeid, "mensaje": mensaje}
+
+def listar_supervisores(employeeid: str | None = None):
+    """Devuelve los empleados habilitados, excluyendo el ID indicado si se proporciona."""
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(SQL_LISTAR_SUPERVISORES, (employeeid,))
+        return cur.fetchall()
+
+def listar_paises():
+    """Devuelve los países disponibles."""
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(SQL_LISTAR_PAISES)
+        return [fila["country"] for fila in cur.fetchall()]

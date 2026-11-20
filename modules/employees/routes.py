@@ -2,6 +2,12 @@ from modules.employees import handlers
 
 def registrar(router):
     """Registra las rutas del módulo employees."""
+
+    # Consultas auxiliares para los selects
+    router.agregar("GET", "/api/employees/supervisores", handlers.listar_supervisores)
+    router.agregar("GET", "/api/employees/paises", handlers.listar_paises)
+
+    # CRUD de empleados
     router.agregar("GET", "/api/employees", handlers.listar)
     router.agregar("GET", "/api/employees/{id}", handlers.obtener)
     router.agregar("POST", "/api/employees", handlers.crear)
