@@ -8,12 +8,13 @@ from core.http import Request, enviar
 from core.router import Router
 from modules.customers import routes as customers_routes
 from modules.suppliers import routes as suppliers_routes
+from modules.employees import routes as employees_routes
 
 # --- Registro de módulos: cada integrante agrega una línea de los módulos que vamos haciendo ---
 router = Router()
 customers_routes.registrar(router)
-# products_routes.registrar(router)
 suppliers_routes.registrar(router)
+employees_routes.registrar(router)
 
 class ServidorConHilos(ThreadingMixIn, WSGIServer):
     """Atiende cada conexión en un hilo propio: el navegador abre varias a la vez
