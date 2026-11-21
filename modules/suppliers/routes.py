@@ -6,4 +6,4 @@ def registrar(router):
     router.agregar("GET", "/api/suppliers/{id}", handlers.obtener)
     router.agregar("POST", "/api/suppliers", handlers.crear)
     router.agregar("PUT", "/api/suppliers/{id}", handlers.actualizar)
-    router.agregar("PATCH", "/api/suppliers/{id}/estado", handlers.eliminar)
+    router.agregar("DELETE", "/api/suppliers/{id}", handlers.eliminar)
