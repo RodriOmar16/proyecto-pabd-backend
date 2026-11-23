@@ -57,4 +57,19 @@ def detalle(req: Request) -> Response:
     except ERRORES_DE_LA_BASE as e:
         raise _error_http(e)
     return Response(200, resultado)
+    
+def _parametros_lista(req: Request):
+    """Lee ?buscar=texto&limite=N para los seleccionables."""
+    buscar = req.query.get("buscar", "").strip() or None
+    limite = req.query_int("limite", 20, maximo=50)
+    return buscar, limite
 
+
+def clientes(req: Request) -> Response:
+    return Response(200, {"data": repository.listar_clientes(*_parametros_lista(req))})
+
+def empleados(req: Request) -> Response:
+    return Response(200, {"data": repository.listar_empleados(*_parametros_lista(req))})
+
+def transportistas(req: Request) -> Response:
+    return Response(200, {"data": repository.listar_transportistas(*_parametros_lista(req))})

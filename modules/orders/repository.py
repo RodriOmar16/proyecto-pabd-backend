@@ -67,3 +67,24 @@ def detalle(orderid: int):
     for linea in lineas:
         linea.pop("total_final", None)  # viaja repetido en cada fila: se devuelve una sola vez
     return {"orderid": orderid, "lineas": lineas, "total_final": total_final}
+
+def _ejecutar_lista(funcion: str, buscar: str | None, limite: int):
+    """Llama a una función de lista de la base con texto de búsqueda y límite."""
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            f"SELECT * FROM {funcion}(p_buscar => %s::text, p_limite => %s::integer)",
+            (buscar, limite),
+        )
+        return cur.fetchall()
+
+
+def listar_clientes(buscar: str | None, limite: int):
+    return _ejecutar_lista("fn_listar_clientes", buscar, limite)
+
+
+def listar_empleados(buscar: str | None, limite: int):
+    return _ejecutar_lista("fn_listar_empleados", buscar, limite)
+
+
+def listar_transportistas(buscar: str | None, limite: int):
+    return _ejecutar_lista("fn_listar_transportistas", buscar, limite)
